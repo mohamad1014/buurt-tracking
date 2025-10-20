@@ -1,6 +1,6 @@
 from typing import List, Optional
 
-from pydantic import BaseSettings
+from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
@@ -23,7 +23,7 @@ class Settings(BaseSettings):
     media_token_secret: str
 
     class Config:
-        env_file = '.env'
+        env_file = 'backend/.env'
         env_file_encoding = 'utf-8'
         case_sensitive = False
 

@@ -20,6 +20,8 @@ npm run dev
 Copy `.env.example` to `.env` and adjust `VITE_BACKEND_BASE_URL` plus feature flags as needed. The development server proxies `/api`
 requests to the configured backend base URL.
 
+**Note**: The project uses `munkres` v2.0.4 for object tracking assignment. The package provides built-in TypeScript definitions.
+
 ## Backend (FastAPI)
 
 ```bash

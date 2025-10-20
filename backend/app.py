@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from typing import Optional
 
 import jwt
-from fastapi import Body, Depends, FastAPI, File, Form, HTTPException, UploadFile
+from fastapi import Body, Depends, FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from sqlalchemy import select, func
@@ -68,6 +68,7 @@ async def health():
 @app.post('/event')
 @limiter.limit('30/minute')
 async def ingest_event(
+    request: Request,
     meta: str = Form(...),
     snapshot: UploadFile = File(...),
     _: None = Depends(verify_api_key),
@@ -132,6 +133,7 @@ async def ingest_event(
 @app.post('/upload/chunk')
 @limiter.limit('30/minute')
 async def upload_chunk(
+    request: Request,
     session_id: str = Form(...),
     index: int = Form(...),
     started_at: str = Form(...),
@@ -153,6 +155,7 @@ async def upload_chunk(
 @app.post('/upload/presign')
 @limiter.limit('30/minute')
 async def presign_upload(
+    request: Request,
     body: dict = Body(...),
     _: None = Depends(verify_api_key),
 ):
@@ -178,7 +181,7 @@ async def presign_upload(
 
 @app.post('/upload/commit')
 @limiter.limit('30/minute')
-async def commit_upload(body: dict = Body(...), _: None = Depends(verify_api_key)):
+async def commit_upload(request: Request, body: dict = Body(...), _: None = Depends(verify_api_key)):
     if not settings.enable_s3:
         raise HTTPException(status_code=400, detail='S3 disabled')
     required = {'session_id', 'index', 'key'}
