@@ -11,24 +11,37 @@ backend/     # FastAPI service, SQLite persistence and Telegram integration
 
 ## Frontend (PWA)
 
+### Development Setup
 ```bash
 cd frontend
 npm install
-npm run dev
 ```
 
 Copy `.env.example` to `.env` and adjust `VITE_BACKEND_BASE_URL` plus feature flags as needed. The development server proxies `/api`
 requests to the configured backend base URL.
 
+### Running the Frontend
+```bash
+# From project root directory
+cd frontend && npm run dev
+```
+
 **Note**: The project uses `munkres` v2.0.4 for object tracking assignment. The package provides built-in TypeScript definitions.
 
 ## Backend (FastAPI)
 
+### Development Setup
 ```bash
 cd backend
 python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
+```
+
+### Running the Backend
+```bash
+# From project root directory (important: not from backend/ subdirectory)
+source backend/.venv/bin/activate
 uvicorn backend.app:app --host 0.0.0.0 --port 8080
 ```
 
