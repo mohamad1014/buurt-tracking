@@ -1,4 +1,4 @@
-import { Munkres } from 'munkres';
+import { munkres } from 'munkres';
 import { Box, boxLerp, iou } from '../utils/geometry';
 
 export interface TrackerConfig {
@@ -84,13 +84,12 @@ export class Tracker {
     }
 
     const costMatrix = this.buildCostMatrix(detections);
-    const munkres = new Munkres();
-    const assignments = munkres.compute(costMatrix);
+    const assignments = munkres(costMatrix);
 
     const usedDetections = new Set<number>();
     const events: TrackEvent[] = [];
 
-    assignments.forEach(([trackIndex, detectionIndex]) => {
+    assignments.forEach(([trackIndex, detectionIndex]: [number, number]) => {
       const track = this.tracks[trackIndex];
       const detection = detections[detectionIndex];
       const overlap = iou(track.box, detection.box);

@@ -13,14 +13,13 @@
   "dependencies": {
     "@tanstack/react-query": "^5.51.1",
     "idb-keyval": "^6.2.1",
-    "munkres": "^0.3.0",
+    "munkres": "^2.0.4",
     "onnxruntime-web": "^1.18.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-router-dom": "^6.23.1"
   },
   "devDependencies": {
-    "@types/munkres": "^0.3.2",
     "@types/node": "^20.12.7",
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18.3.0",

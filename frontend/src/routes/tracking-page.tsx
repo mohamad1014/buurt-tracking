@@ -24,57 +24,61 @@ export function TrackingPage() {
   const detector = useYoloDetector({ video: videoElement });
 
   useEffect(() => {
-    if (detector.events.length === 0) return;
-    if (clip.enabled && !clip.ready) {
-      setStatus('Waiting for CLIP verifier');
-      return;
-    }
-    const [event] = detector.events;
-    if (!videoRef.current) return;
-    const canvas = document.createElement('canvas');
-    canvas.width = videoRef.current.videoWidth;
-    canvas.height = videoRef.current.videoHeight;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-    ctx.drawImage(videoRef.current, 0, 0);
-
-    let clipScore: number | undefined;
-    if (clip.enabled) {
-      const [x1, y1, x2, y2] = event.box.map((v) => Math.max(0, v));
-      const w = Math.max(1, x2 - x1);
-      const h = Math.max(1, y2 - y1);
-      const crop = ctx.getImageData(x1, y1, w, h);
-      const result = await clip.verify(crop);
-      clipScore = result.score;
-      const threshold = clip.threshold ?? DEFAULT_CLIP_THRESHOLD;
-      if (clipScore !== undefined && clipScore < threshold) {
-        setStatus('CLIP verification failed');
+    const processEvent = async () => {
+      if (detector.events.length === 0) return;
+      if (clip.enabled && !clip.ready) {
+        setStatus('Waiting for CLIP verifier');
         return;
       }
-    }
+      const [event] = detector.events;
+      if (!videoRef.current) return;
+      const canvas = document.createElement('canvas');
+      canvas.width = videoRef.current.videoWidth;
+      canvas.height = videoRef.current.videoHeight;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+      ctx.drawImage(videoRef.current, 0, 0);
 
-    canvas.toBlob(async (blob) => {
-      if (!blob) return;
-      const meta = {
-        ts: new Date().toISOString(),
-        company_key: TARGET_COMPANY,
-        track_id: event.trackId,
-        bbox_xyxy: event.box,
-        avg_conf: event.avgConf,
-        duration_ms: event.durationMs,
-        clip_enabled: clip.enabled,
-        clip_score: clipScore,
-      } as const;
-      try {
-        setStatus('Posting event');
-        const response = await postEvent(meta, blob);
-        setLastEventTs(response.event_id);
-        setStatus('Event posted');
-      } catch (err) {
-        console.error(err);
-        setStatus('Failed to post event');
+      let clipScore: number | undefined;
+      if (clip.enabled) {
+        const [x1, y1, x2, y2] = event.box.map((v) => Math.max(0, v));
+        const w = Math.max(1, x2 - x1);
+        const h = Math.max(1, y2 - y1);
+        const crop = ctx.getImageData(x1, y1, w, h);
+        const result = await clip.verify(crop);
+        clipScore = result.score;
+        const threshold = clip.threshold ?? DEFAULT_CLIP_THRESHOLD;
+        if (clipScore !== undefined && clipScore < threshold) {
+          setStatus('CLIP verification failed');
+          return;
+        }
       }
-    }, 'image/jpeg', 0.9);
+
+      canvas.toBlob(async (blob) => {
+        if (!blob) return;
+        const meta = {
+          ts: new Date().toISOString(),
+          company_key: TARGET_COMPANY,
+          track_id: event.trackId,
+          bbox_xyxy: event.box,
+          avg_conf: event.avgConf,
+          duration_ms: event.durationMs,
+          clip_enabled: clip.enabled,
+          clip_score: clipScore,
+        } as const;
+        try {
+          setStatus('Posting event');
+          const response = await postEvent(meta, blob);
+          setLastEventTs(response.event_id);
+          setStatus('Event posted');
+        } catch (err) {
+          console.error(err);
+          setStatus('Failed to post event');
+        }
+      }, 'image/jpeg', 0.9);
+    };
+    
+    processEvent();
   }, [detector.events, clip.enabled, videoRef]);
 
   return (
