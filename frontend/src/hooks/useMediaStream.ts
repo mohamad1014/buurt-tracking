@@ -21,10 +21,7 @@ export function useMediaStream({ width = 1280, height = 720 }: UseMediaStreamOpt
         audio: false,
       });
       setStream(media);
-      if (videoRef.current) {
-        videoRef.current.srcObject = media;
-        await videoRef.current.play();
-      }
+      // srcObject will be set by useEffect when both stream and videoRef are available
     } catch (err) {
       setError((err as Error).message);
     }
@@ -33,6 +30,13 @@ export function useMediaStream({ width = 1280, height = 720 }: UseMediaStreamOpt
   const stop = useCallback(() => {
     stream?.getTracks().forEach((track) => track.stop());
     setStream(null);
+  }, [stream]);
+
+  // Set stream on video element when both are available
+  useEffect(() => {
+    if (videoRef.current && stream) {
+      videoRef.current.srcObject = stream;
+    }
   }, [stream]);
 
   useEffect(() => {
