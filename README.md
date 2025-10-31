@@ -28,6 +28,19 @@ cd frontend && npm run dev
 
 **Note**: The project uses `munkres` v2.0.4 for object tracking assignment. The package provides built-in TypeScript definitions.
 
+### YOLO model setup
+
+The detector loads a YOLOv8n ONNX model from `frontend/public/models/yolov8n.onnx`. Download the file once before starting the
+frontend:
+
+```bash
+mkdir -p frontend/public/models
+yolo export model=yolo11n.pt format=onnx opset=17 dynamic=False simplify=False
+```
+
+If you prefer to host the file elsewhere, set `VITE_YOLO_MODEL_URL` in `frontend/.env` to point at the alternate URL. The tracking UI
+now surfaces camera and detector errors through the status indicator to help diagnose missing models or permission issues.
+
 ## Backend (FastAPI)
 
 ### Development Setup

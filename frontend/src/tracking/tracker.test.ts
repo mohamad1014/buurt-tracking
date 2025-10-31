@@ -1,4 +1,4 @@
-import { describe, expect, it, beforeEach } from 'vitest';
+import { describe, expect, it, beforeEach, afterEach, vi } from 'vitest';
 import { Tracker, loadTrackerConfig, type TrackerConfig } from './tracker';
 
 declare global {
@@ -42,9 +42,13 @@ describe('loadTrackerConfig', () => {
 
 describe('Tracker', () => {
   beforeEach(() => {
-    globalThis.crypto = {
+    vi.stubGlobal('crypto', {
       randomUUID: () => 'test-id',
-    } as Mutable<Crypto>;
+    } as Mutable<Crypto>);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
   });
 
   it('fires an event after minimum duration with sufficient confidence', () => {

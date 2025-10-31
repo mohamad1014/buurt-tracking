@@ -6,6 +6,7 @@ const DETECT_FPS = Number(import.meta.env.VITE_DETECT_FPS ?? 5);
 const CONF_THRESHOLD = Number(import.meta.env.VITE_CONF_THRESHOLD ?? 0.4);
 const TARGET_CLASS = 2; // car
 const INPUT_SIZE = 640;
+const MODEL_URL = import.meta.env.VITE_YOLO_MODEL_URL ?? '/models/yolov11n.pt';
 
 interface UseYoloDetectorArgs {
   video: HTMLVideoElement | null;
@@ -76,7 +77,7 @@ export function useYoloDetector({ video }: UseYoloDetectorArgs): DetectorState {
     let cancelled = false;
     import('onnxruntime-web').then(async (ortModule) => {
       try {
-        const session = await ortModule.InferenceSession.create('/models/yolov8n.onnx', {
+        const session = await ortModule.InferenceSession.create(MODEL_URL, {
           executionProviders: ['webgl', 'wasm'],
         });
         if (cancelled) return;
@@ -85,7 +86,12 @@ export function useYoloDetector({ video }: UseYoloDetectorArgs): DetectorState {
         setState((prev) => ({ ...prev, loading: false }));
       } catch (err) {
         if (!cancelled) {
-          setState((prev) => ({ ...prev, loading: false, error: (err as Error).message }));
+          const message = (err as Error).message ?? String(err);
+          const friendly =
+            /404|not\s*found|failed to fetch/i.test(message)
+              ? `Failed to load YOLO model from ${MODEL_URL}. Ensure the file exists or configure VITE_YOLO_MODEL_URL.`
+              : message;
+          setState((prev) => ({ ...prev, loading: false, error: friendly }));
         }
       }
     });

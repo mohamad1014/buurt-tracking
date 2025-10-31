@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useMediaStream } from '../hooks/useMediaStream';
 import { useChunkRecorder } from '../hooks/useChunkRecorder';
 import { useYoloDetector } from '../hooks/useYoloDetector';
@@ -8,26 +8,97 @@ import { useClipVerifier } from '../hooks/useClipVerifier';
 const TARGET_COMPANY = import.meta.env.VITE_TARGET_COMPANY ?? 'acme';
 const DEFAULT_CLIP_THRESHOLD = Number(import.meta.env.VITE_CLIP_SIM_THRESHOLD ?? 0.27);
 
+export interface TrackingStatusContext {
+  streamReady: boolean;
+  cameraError?: string | null;
+  detectorLoading: boolean;
+  detectorError?: string;
+  clipEnabled: boolean;
+  clipReady: boolean;
+  detectionCount: number;
+}
+
+export function deriveBaseStatus({
+  streamReady,
+  cameraError,
+  detectorLoading,
+  detectorError,
+  clipEnabled,
+  clipReady,
+  detectionCount,
+}: TrackingStatusContext): string {
+  if (cameraError) {
+    return `Camera error: ${cameraError}`;
+  }
+  if (!streamReady) {
+    return 'Waiting for camera';
+  }
+  if (detectorError) {
+    return `Detector error: ${detectorError}`;
+  }
+  if (detectorLoading) {
+    return 'Loading detector';
+  }
+  if (clipEnabled && !clipReady) {
+    return 'Waiting for CLIP verifier';
+  }
+  if (detectionCount > 0) {
+    return 'Tracking active';
+  }
+  return 'Detector ready';
+}
+
 export function TrackingPage() {
   const { videoRef, stream, start, error } = useMediaStream();
   const { sessionId, pending } = useChunkRecorder(stream);
-  const [status, setStatus] = useState<string>('Initializing');
+  const [eventStatus, setEventStatus] = useState<string | null>(null);
   const [lastEventTs, setLastEventTs] = useState<string | null>(null);
   const [apiKey, setApiKeyState] = useState<string>(() => localStorage.getItem('api_key') ?? '');
   const [videoElement, setVideoElement] = useState<HTMLVideoElement | null>(null);
   const clip = useClipVerifier();
+  const detector = useYoloDetector({ video: videoElement });
+  const eventStatusTimeout = useRef<number | null>(null);
+  const baseStatus = deriveBaseStatus({
+    streamReady: Boolean(stream),
+    cameraError: error,
+    detectorLoading: detector.loading,
+    detectorError: detector.error,
+    clipEnabled: clip.enabled,
+    clipReady: clip.ready,
+    detectionCount: detector.lastDetections.length,
+  });
+  const status = eventStatus ?? baseStatus;
+
+  const setEventStatusWithTimeout = useCallback((value: string | null, timeoutMs?: number) => {
+    if (eventStatusTimeout.current) {
+      window.clearTimeout(eventStatusTimeout.current);
+      eventStatusTimeout.current = null;
+    }
+    setEventStatus(value);
+    if (timeoutMs && value) {
+      eventStatusTimeout.current = window.setTimeout(() => {
+        setEventStatus(null);
+        eventStatusTimeout.current = null;
+      }, timeoutMs);
+    }
+  }, []);
 
   useEffect(() => {
     start();
   }, [start]);
 
-  const detector = useYoloDetector({ video: videoElement });
+  useEffect(() => {
+    return () => {
+      if (eventStatusTimeout.current) {
+        window.clearTimeout(eventStatusTimeout.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     const processEvent = async () => {
       if (detector.events.length === 0) return;
       if (clip.enabled && !clip.ready) {
-        setStatus('Waiting for CLIP verifier');
         return;
       }
       const [event] = detector.events;
@@ -49,7 +120,7 @@ export function TrackingPage() {
         clipScore = result.score;
         const threshold = clip.threshold ?? DEFAULT_CLIP_THRESHOLD;
         if (clipScore !== undefined && clipScore < threshold) {
-          setStatus('CLIP verification failed');
+          setEventStatusWithTimeout('CLIP verification failed', 4000);
           return;
         }
       }
@@ -67,19 +138,19 @@ export function TrackingPage() {
           clip_score: clipScore,
         } as const;
         try {
-          setStatus('Posting event');
+          setEventStatusWithTimeout('Posting event');
           const response = await postEvent(meta, blob);
           setLastEventTs(response.event_id);
-          setStatus('Event posted');
+          setEventStatusWithTimeout('Event posted', 4000);
         } catch (err) {
           console.error(err);
-          setStatus('Failed to post event');
+          setEventStatusWithTimeout('Failed to post event', 4000);
         }
       }, 'image/jpeg', 0.9);
     };
     
-    processEvent();
-  }, [detector.events, clip.enabled, videoRef]);
+    void processEvent();
+  }, [detector.events, clip.enabled, clip.ready, videoRef, setEventStatusWithTimeout]);
 
   return (
     <main style={{ padding: '1rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
